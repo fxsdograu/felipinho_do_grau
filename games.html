@@ -8,6 +8,7 @@
 <meta property="og:image" content="images/cover.jpg" />
 <link rel="icon" type="image/x-icon" href="images/favicon.ico">
 <link rel="stylesheet" type="text/css" href="css/style.css">
+<link rel="stylesheet" type="text/css" href="css/snake.css">
 </head>
 
 <body>
@@ -27,8 +28,10 @@
 </header>
 
 <!-- COVER SECTION !-->
-<section id="video" class="cover">
-  <h1 color="black">Jogos</h1>
+<section id="home-head" class="cover">
+  <h1>Jogos</h1>
+</section>
+
 </section>
 
 <!-- INTRODUCTION SECTION !-->
@@ -36,13 +39,25 @@
   <div class="text-intro">
     <h3>Snake Game</h3>
     <br>
-    <p>Jogue o clássico jogo da cobrinha diretamente aqui no site!</p>
     <!-- Snake game start -->
     <div id="snake-game" style="margin-top:12px;">
       <div style="margin:6px 0;">Pontuação: <span id="snake-score">0</span></div>
       <canvas id="snakeCanvas" width="480" height="320" style="border:1px solid #000; background:#fff; display:block;
         max-width:100%; height:auto;"></canvas>
-      <button id="snake-restart" style="margin-top:8px; display:none;">Reiniciar</button>
+      <div class="snake-controls">
+        <button id="snake-play" class="snake-btn">Jogar</button>
+        <button id="snake-restart" class="snake-btn" style="display:none;">Reiniciar</button>
+        
+        <!-- Botões direcionais para mobile -->
+        <div class="direction-buttons">
+          <button class="dir-btn" id="btn-up">↑</button>
+          <div class="horizontal-buttons">
+            <button class="dir-btn" id="btn-left">←</button>
+            <button class="dir-btn" id="btn-right">→</button>
+          </div>
+          <button class="dir-btn" id="btn-down">↓</button>
+        </div>
+      </div>
     </div>
 
     <script>
@@ -57,11 +72,12 @@
       let dir = {x: 1, y: 0};
       let food = randomFood();
       let score = 0;
-      let running = true;
+      let running = false;
       let interval = null;
 
       const scoreEl = document.getElementById('snake-score');
       const restartBtn = document.getElementById('snake-restart');
+      const playBtn = document.getElementById('snake-play');
 
       function randomFood(){
         let f = {x: Math.floor(Math.random() * cols), y: Math.floor(Math.random() * rows)};
@@ -125,6 +141,7 @@
         ctx.fillText('Game Over — Pontuação: ' + score, canvas.width / 2, canvas.height / 2 - 8);
         ctx.fillText('Clique em Reiniciar', canvas.width / 2, canvas.height / 2 + 18);
         restartBtn.style.display = 'inline-block';
+        playBtn.style.display = 'none';
       }
 
       function reset(){
@@ -133,15 +150,24 @@
         food = randomFood();
         score = 0;
         scoreEl.textContent = score;
-        running = true;
+        running = false;
         restartBtn.style.display = 'none';
+        playBtn.style.display = 'inline-block';
         clearInterval(interval);
-        interval = setInterval(loop, 120);
         draw();
+      }
+
+      function startGame() {
+        if (!running) {
+          running = true;
+          playBtn.style.display = 'none';
+          interval = setInterval(loop, 120);
+        }
       }
 
       // controles teclado (setas + WASD)
       window.addEventListener('keydown', function(e){
+        if (!running) return;
         const key = e.key;
         // evitar rolagem de página com as setas
         if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(key)) e.preventDefault();
@@ -152,10 +178,25 @@
         if((key === 'ArrowRight' || key === 'd' || key === 'D') && dir.x !== -1){ dir = {x: 1, y: 0}; }
       });
 
+      // Adiciona os event listeners dos botões principais
+      playBtn.addEventListener('click', startGame);
       restartBtn.addEventListener('click', reset);
 
-      // start
-      interval = setInterval(loop, 120);
+      // Controles mobile
+      document.getElementById('btn-up').addEventListener('click', () => {
+        if(running && dir.y !== 1) dir = {x: 0, y: -1};
+      });
+      document.getElementById('btn-down').addEventListener('click', () => {
+        if(running && dir.y !== -1) dir = {x: 0, y: 1};
+      });
+      document.getElementById('btn-left').addEventListener('click', () => {
+        if(running && dir.x !== 1) dir = {x: -1, y: 0};
+      });
+      document.getElementById('btn-right').addEventListener('click', () => {
+        if(running && dir.x !== -1) dir = {x: 1, y: 0};
+      });
+
+      // Desenha o estado inicial
       draw();
     })();
     </script>
