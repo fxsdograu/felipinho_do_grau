@@ -1,0 +1,490 @@
+---
+title: "Regressão Linear Aplicada à Séries Temporais"
+format: html
+author: "Vinicius Aquino"
+code-block-border-left: true
+date: now
+---
+## Sumário {#sec-sumario}
+
+&ensp;  [Sumário -@sec-sumario] <br>
+&ensp;  [Resumo -@sec-resumo] <br>
+&ensp;  [Regressão Linear e Séries Temporais -@sec-regressao-linear-e-series-temporais] <br>
+&ensp;&ensp; [Modelando Tendência -@sec-modelando-tendencia}] <br>
+&ensp;&ensp; [Modelando Sazonalidade Mensal -@sec-sazonalidade-mensal}] <br>
+&ensp;&ensp; [Validação Cruzada -@sec-validacao-cruzada}] <br>
+&ensp;[Variáveis Exógenas e Considerações Finais -@sec-variaveis-exogenas-e-consideracoes-finais] <br>
+
+## Resumo {#sec-resumo}
+
+O texto parte do princípio que o leitor tem um conhecimento básico sobre o que é uma regressão linear. Nele apresenta como esse modelo pode ser usado no contexto de séries temporais. Na maioria absoluta das vezes o uso de regressão linear no contexto de séries temporais é dispensado, dado que modelos da classe ARMA tem a capacidade de comportar tendências (ARIMA), sazonalidade (SARMA) e variáveis exógenas (ARMAX). Os modelos da classe ARMA podem se dizer "extensões" de regressões lineares aplicadas à séries temporais, no entanto, o entendimento de como comportar regressões lineares para séries temporais é o que vai permitir o leitor a entender como funcionam regressões não paramétricas, em especial algoritimos baseados em árvores de decisão (LightGBM e XGboost, por exemplo), podem ser usadas para este tipo de problema. 
+
+Para esse exercício, será o dataset beer sales, que reúne uma série histórica de vendas de cerveja. O <a href="https://raw.githubusercontent.com/flo7up/relataly_data/main/alcohol_sales/BeerWineLiquor.csv">dataset</a> junto aos pacotes usados podem ser vistos abaixo.
+
+Pacotes usados:
+
+```{python}
+import pandas as pd
+import numpy as np
+import statsmodels.api as sm 
+from pmdarima.model_selection import SlidingWindowForecastCV
+import matplotlib.pyplot as plt
+plt.style.use('ggplot')
+```
+
+```{python}
+#| echo: True
+#| 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+
+path = "https://raw.githubusercontent.com/flo7up/relataly_data/main/alcohol_sales/BeerWineLiquor.csv"
+```
+Dataset:
+```{python}
+df = pd.read_csv(path, parse_dates=['date'], index_col=['date'])
+
+df.head()
+```
+
+```{python}
+#| echo: false
+
+f, ax = plt.subplots(figsize=(8, 5))
+
+ax.plot(df)
+
+plt.title("Beer Sales Time Serie")
+plt.show()
+```
+
+
+## Regressão Linear e Séries Temporais {#sec-regressao-linear-e-series-temporais}
+
+<p>Uma observação sempre pertinente sobre Regressão Linear é que existe essencialmente dois modelos diferentes e eventualmente coincidentes: existe a regressão linear como modelo matemático que minimiza quadrados ordinários e existe a regressão linear como modelo probabilístico que produz estimadores não enviesados de menor variância possível (BLUE). Isso é, existe a regressão linear da álgebra linera e a regressão linear da estatística. No escopo deste texto, aprendizado de máquina supervisionado, será visto o primeiro modelo. Isso é, a nossa regressão linear vai ser pensada como um algoritimo que encontra uma estimativa para um modelo com parâmetros lineares entre si, minimizando o quadrado dos resíduos em treino sem fazer suposições a cerca do comportamento dos resíduos.
+
+No contexto de Séries Temporais, o que pode-se fazer com regressão linear é estimar modelos "mecanisticos" para sua variável aleatória $y_t$. O "mecanístico" vem lá da Física Mecânica mesmo. Estimar uma função de posição ao longo do tempo para a sua variável e adicionar covariáveis para explicar isto. O desafio vai ser especificar essa função de forma que capte melhor o movimento da variável. Um ponto interessante é que como está se estimando a "velocidade" de crescimento, é interessante não usar um dataset tão grande, para que estime velocidades "locais".
+
+Além disso, é interessante pontuar que se modela separadamente (no memso modelo, mas com "fatores" próprios para cada) os diferentes componentes de uma série temporal. No caso, para o dataset a ser usado, há componentes de <i>tendência</i> e  <i>sazonalidade mensal</i> a serem controlados e que serão adicionados por partes no modelo. A idéia é controlar esses fatores até que os erros do modelo sejam meramente ao acaso, ou, como é visto nos modelos ARIMA, sejam "ruídos brancos".
+
+### Modelando Tendência: {#sec-modelando-tendencia}
+
+Para o nosso dataset, vamos sugerir inicialmente dois modelos mais simples de tendência:
+
+Demanda com crescimento constante e linear:
+$$y_{t} = \beta_{0} + \beta_{1}t$$
+
+- Isso é, nossa demanda segue um "movimento retilinio uniforme", onde a velocidade é dada por $\beta_{1}$ e a posição inicial é dada por $\beta_{0}$
+
+Demanda com crescimento exponencial:
+$$y_{t} = \beta_{0} e^{\beta_{1}t}$$
+
+- Nesse caso, o modelo não seria linear, mas pode-se linearizá-lo usando o logaritimo de $y_{t}$:
+
+$$ln(y_{t}) = ln(\beta_{0}) + \beta_{1}t$$
+
+Interessante notar que na prática os dois modelos têm a mesma cara, mas um está olhando para a variável em nível e o outro para o logaritimo da variável.
+
+Modelando em Python:
+
+```{python}
+n = 60 # tamanho da amostra de treinamento
+
+df_train = pd.DataFrame({'y': df.iloc[:n, 0],
+                        'b0': np.ones(n), 
+                        'b1': np.arange(0, n)}) # Dataset a ser trabalhado 
+                        
+df_train.head()
+```
+
+<br></br>
+
+```{python}
+# Treinando Modelo 1
+model_1 = sm.OLS(df_train.y, df_train[['b0', 'b1']])
+results_1 = model_1.fit()
+
+print(results_1.summary())
+```
+
+O modelo estimado foi:
+
+$$\hat{y_t} = 1714.40 + 4.31t$$
+
+<br></br>
+
+```{python}
+# Treinando Modelo 2
+model_2 = sm.OLS(np.log(df_train.y), df_train[['b0', 'b1']])
+results_2 = model_2.fit()
+
+print(results_2.summary())
+```
+
+O modelo estimado foi:
+
+$$\hat{y_t} = 1707.01 e^{0.0023t}$$
+
+Fazendo previsões com os modelos:
+
+```{python}
+h = 24 # Intervalo de predição
+input_predict = pd.DataFrame({'b0': np.ones(h), 
+                              'b1': np.arange(n, n+h)})
+
+predict_model_1 = results_1.predict(input_predict[['b0', 'b1']])
+
+# Lembrando que o modelo enxerga o logaritimo, por isso o exp
+predict_model_2 = np.exp(results_2.predict(input_predict[['b0', 'b1']])) 
+```
+
+```{python}
+#| echo: false
+
+f, ax = plt.subplots(figsize=(8, 5))
+
+ax.plot(df_train.y, label='train', color='r')
+ax.plot(results_1.fittedvalues, label='linear model', color='b')
+ax.plot(np.exp(results_2.fittedvalues), label='exp model', color='g')
+
+plt.plot(df.iloc[n:n+h, 0], color='r', ls='--', label='test')
+plt.plot(df.index[n: n+h], predict_model_1, color='b', ls=':')
+plt.plot(df.index[n: n+h], predict_model_2, color='g', ls=':')
+
+plt.legend()
+
+plt.title("Current vs Predict")
+plt.show()
+```
+
+<br></br>
+
+
+```{python}
+#| echo: false
+
+f, ax = plt.subplots(figsize=(8, 5))
+
+year_predict_in_2 = np.exp(results_2.fittedvalues).resample('1YE').mean()
+year_predict_in_2.index = year_predict_in_2.index.year
+
+year_predict_in_1 = results_1.fittedvalues.resample('1YE').mean()
+year_predict_in_1.index = year_predict_in_1.index.year
+
+ax.plot(year_predict_in_2, label='exp model', color='g')
+ax.plot(year_predict_in_1, label='linear model', color='b')
+ax.scatter(df_train.index.year, df_train.y, color='r')
+
+plt.plot([year_predict_in_1.index[-1]] + df.index[n: n+h].year.unique().to_list(), [year_predict_in_1.values[-1], predict_model_1[:12].mean(), predict_model_1[-12:].mean()], color='b', ls=':')
+plt.plot([year_predict_in_2.index[-1]] + df.index[n: n+h].year.unique().to_list(), [year_predict_in_2.values[-1], predict_model_2[:12].mean(), predict_model_2[-12:].mean()], color='g', ls=':')
+ax.scatter(df.index[n: n+h].year, df.iloc[n: n+h, 0], color='r')
+
+plt.legend()
+
+plt.title("Current vs Predict (Trend Analysis)")
+plt.show()
+```
+
+<br></br>
+
+No caso, os dois modelos, de certa forma, pegaram bem a tendência da série. A questão está nos padrões dos erros relacionados a sazonalidade mensal.
+
+
+## Sazonalidade Mensal {#sec-sazonalidade-mensal}
+
+Apesar da modelagem da tendência ter sido bem sucedida, é vizualmente nítido que há um forte padrão nos erros. Todo mês de janeiro, a previsão fica abaixo, por exemplo. O ponto em questão agora é saber como se dá a estrutura desse erro. Na prática, o que será feito é estimar o "empurrãozinho" que cada mês dá nessa reta estimada. Dá mesma forma que a tendência pode ser linear ou exponencial, a sazonalidade pode ser aditiva ou multiplicativa. No caso da aditiva, é, todo mês, adicionado um fator ao nível da série (negativo ou positivo). No caso da multiplicativa, todo mês o nível da série é multiplicado por um fator diferente. 
+
+No caso, o Modelo 1 terá sazonalidade aditiva. O novo modelo 1 pode ser visto como:
+
+$$y_{t} = \beta_{0} + \beta_{1}t + \beta_{jan} x_{jan} + \beta_{fev} x_{fev} + ... + \beta_{nov} x_{nov}$$
+
+Onde $x_{jan}$ vale 1 se é o mês de janeiro, 0 caso contrário. As demais variáveis se comportam do mesmo jeito. Isso é, para o mês de julho, por exemplo, o valor esperado de $y_{t}$ é dado por: $\hat{y_{t}} = \beta_{0} + \beta_{1}t + \beta_{jul}$.
+
+Para o Modelo 2 será usada a sazonalidade multiplicativa. Sendo o modelo 2:
+
+$$y_{t} = \beta_{0} e^{\beta_{1}t} e^{\beta_{jan}x_{jan}} e^{\beta_{fev} x_{fev}} ... e^{\beta_{nov} x_{nov}}$$
+
+Linearizando o modelo:
+
+$$ln(y_{t}) = ln(\beta_{0}) + \beta_{1}t +\beta_{jan} x_{jan} + \beta_{fev} x_{fev} + ... + \beta_{nov} x_{nov}$$
+
+No caso, citando novamente o mês de julho, o valor esperado seria $y_{t} = \beta_{0} e^{\beta_{1}t} e^{\beta_{jul}}$, dado que as demais variáveis $x_{mes}$ seriam 0 e $e^{0} = 1$. Sendo, portanto, $e^{\beta_{jul}}$ o efeito do mês de julho na demanda.
+
+Você pode ter se perguntado: "E dezembro?". Bom, aí entra o tal problema da multicolinearidade. Se no modelo tiver os 12 meses como variáveis dummies, então a coluna do intercepto (que vale 1) vai ser a soma de todas as colunas de sazonalidade, o que seria uma colinearidade perfeita.
+
+Modelando em Python:
+
+```{python}
+# Criando um dataframe com variáveis dummies:
+df_sazo = pd.get_dummies(
+                        pd.DataFrame({"mes_": [i.month for i in df.index[:n]]}),
+                        columns=['mes_'],
+                        prefix="mes"
+                         )                        
+
+df_train = pd.concat([df_train.reset_index(drop=True), 
+                      df_sazo], axis=1).astype(int).drop(labels=['mes_12'], axis=1)
+
+
+df_train.head()
+```
+
+
+```{python}
+model_1_sazo = sm.OLS(df_train.y, df_train.iloc[:, 1:])
+results_1_sazo = model_1_sazo.fit()
+
+print(results_1_sazo.summary())
+```
+
+No caso, para o mês de julho, o modelo estimado foi:
+$$\hat{y_{t}} = 1518.57 + 2.37t + 181.50 = 1700.07 + 2.37t$$
+
+```{python}
+model_2_sazo = sm.OLS(np.log(df_train.y), df_train.iloc[:, 1:])
+results_2_sazo = model_2_sazo.fit()
+
+print(results_2_sazo.summary())
+```
+
+E, novamente tomando julho como exemplo, o modelo estimado foi:
+
+$$\hat{y_t} = e^{\hat{\beta_0}} e^{\hat{\beta_1}t} e^{\hat{\beta_{jul}}} = 604.68 e^{0.0013t} 1.762 =  1065.45 e^{0.0013t}$$
+
+Fazendo previsões com os modelos:
+
+```{python}
+input_predict = pd.DataFrame({'b0': np.ones(h), 
+                              'b1': np.arange(n, n+h)})
+
+
+df_sazo_predict = pd.get_dummies(
+                                pd.DataFrame({"mes_": [i.month for i in df.index[n:n+h]]}),
+                                columns=['mes_'],
+                                prefix="mes"
+                                ).astype(int).drop(labels=['mes_12'], axis=1)     
+
+input_predict_sazo = pd.concat([input_predict,
+                                df_sazo_predict],
+                                axis=1)                                                 
+
+predict_model_1_sazo = results_1_sazo.predict(input_predict_sazo)
+# Lembrando que o modelo enxerga o logaritimo, por isso o exp
+predict_model_2_sazo = np.exp(results_2_sazo.predict(input_predict_sazo)) 
+```
+
+```{python}
+#| echo: false
+f, ax = plt.subplots(figsize=(8, 5))
+
+ax.plot(df.index[:n], df_train.y, label='train', color='r')
+ax.plot(df.index[:n], results_1_sazo.fittedvalues, label='linear model', color='b')
+ax.plot(df.index[:n], np.exp(results_2_sazo.fittedvalues), label='exp model', color='g')
+
+plt.plot(df.iloc[n:n+h, 0], color='r', ls='--', label='test')
+plt.plot(df.index[n: n+h], predict_model_1_sazo, color='b', ls=':')
+plt.plot(df.index[n: n+h], predict_model_2_sazo, color='g', ls=':')
+
+plt.legend()
+
+plt.title("Current vs Predict")
+plt.show()
+```
+
+```{python}
+#| echo: false
+
+f, ax = plt.subplots(figsize=(8, 5))
+ax.scatter(df.index[:n].year, df_train.y, color='r')
+ax.scatter(df.index[n:n+h].year, df.iloc[n:n+h, 0], color='r')
+
+
+# Model 1
+fitted = results_1_sazo.fittedvalues
+fitted.index = df.index[:n]
+fitted = fitted.resample('1YE').mean()
+
+predict = predict_model_1_sazo
+predict.index = df.index[n: n+h]
+predict = predict.resample('1YE').mean()
+
+ax.plot(fitted.index.year, fitted, label='linear model', color='b')
+ax.plot([fitted.index.year[-1]]+predict.index.year.to_list(), [fitted[-1]]+predict.to_list(), color='b', ls='--')
+
+# Model 2
+fitted = np.exp(results_2_sazo.fittedvalues)
+fitted.index = df.index[:n]
+fitted = fitted.resample('1YE').mean()
+
+predict = predict_model_2_sazo
+predict.index = df.index[n: n+h]
+predict = predict.resample('1YE').mean()
+
+ax.plot(fitted.index.year, fitted, label='exp model', color='g')
+ax.plot([fitted.index.year[-1]]+predict.index.year.to_list(), [fitted[-1]]+predict.to_list(), color='g', ls='--')
+
+plt.legend()
+
+plt.title("Current vs Predict (Trend Analysis)")
+plt.show()
+```
+
+```{python}
+#| echo: false
+
+f, ax = plt.subplots(figsize=(8, 5))
+
+df_temp = df.iloc[:n, 0].copy()
+df_temp.index = df_temp.index.year  
+for i in df_temp.index.unique():
+    ax.plot(np.arange(1, 13), df_temp.loc[i], 'r', alpha=.5)
+
+df_temp = df.iloc[n:n+h, 0].copy()
+df_temp.index = df_temp.index.year  
+for i in df_temp.index.unique():
+    ax.plot(np.arange(1, 13), df_temp.loc[i], 'r--', alpha=.5)
+
+# Modelo 1
+predict = predict_model_1_sazo
+predict.index = df.index[n: n+h].year
+for i in predict.index.unique():
+    ax.plot(np.arange(1, 13), predict.loc[i], '--', color='b')
+
+
+# Modelo 2
+predict = predict_model_2_sazo
+predict.index = df.index[n: n+h].year
+for i in predict.index.unique():
+    ax.plot(np.arange(1, 13), predict.loc[i], '--',  color='g')
+
+plt.title("Current vs Predict (Sazonality Analysis)")
+plt.show()
+```
+
+<br></br>
+
+Nesse caso, ambos modelos apresentam um comportamento muito parecido. No caso, isso deve-se e muito a amostra escolhida. É nítido que os primeiros 5 anos apresentam uma tendência menor, o que faz que ambos modelos tenham uma tendência quase nula. O que pode-se fazer agora é modularizar o código e fazer uma validação cruzada do previsto. 
+
+### Validação Cruzada: {#sec-validacao-cruzada}
+
+A idéia da validação cruzada é bem simples: treinar o modelo inúmeras vezes com amostras distintas pra ver analisar a capacidade de extrapolação.
+
+```{python}
+cv = SlidingWindowForecastCV(step=12, 
+                             h=24, 
+                             window_size=72)
+cv_generator = cv.split(df)
+```
+
+```{python}
+#| echo: false
+
+n = len(list(cv.split(df)))
+f, axs = plt.subplots(nrows=n,
+                      ncols=1,
+                      sharex=True,
+                      figsize=(8, 12))
+
+f.suptitle(f"Cross-Validation Subsets ({n})", fontsize=20)
+for i in range(n):
+    index = next(cv_generator)
+    axs[i].plot(df.iloc[index[0]], 'k')
+    axs[i].plot(df.iloc[index[1]], 'r')
+    axs[i].get_yaxis().set_visible(False)
+
+plt.tight_layout()
+plt.show()
+```
+
+<br></br>
+
+Nesse caso, serão treinados 20x cada modelo com amostras diferentes (mas não tãããão independentes, dado que uma observação aparece 5x em cada amostra) e será avaliado o desempenho de cada um prevendo dois anos seguintes. Criando uma função que prevê os dois anos seguintes:
+
+- Dataset com os inputs:
+
+```{python}
+df_cv = df.copy()
+df_cv.columns = ['y']
+
+df_cv['b0'] = 1
+df_cv['b1'] = np.arange(len(df_cv))
+
+dummies_sazo = pd.get_dummies(pd.DataFrame({"mes": df_cv.index.month}), columns=["mes"]).astype(int).drop(labels=['mes_12'], axis=1)
+df_cv = pd.concat([df_cv.reset_index(drop=True), 
+                   dummies_sazo], axis=1)
+
+df_cv.head()
+```
+
+- Função que treina o modelo e prevê os próximos h períodos:
+
+```{python}
+def fit_predict(df_train: pd.DataFrame, df_test: pd.DataFrame, h: int, log: bool):
+    model = sm.OLS(np.log(df_train.iloc[:, 0]) if log else df_train.iloc[:, 0], 
+                   df_train.iloc[:, 1:])
+    result = model.fit()
+    predict = np.exp(result.predict(df_test.iloc[:, 1:])) if log else result.predict(df_test.iloc[:, 1:])
+
+    return predict 
+```
+
+- Validação cruzada:
+
+```{python}
+cv_generator = cv.split(df)
+
+log_win = np.zeros(n, dtype=float)
+for i in range(n):
+    index = next(cv_generator)
+
+    predict_lin = fit_predict(df_cv.iloc[index[0]], df_cv.iloc[index[1]], 12, False)
+    predict_log = fit_predict(df_cv.iloc[index[0]], df_cv.iloc[index[1]], 12, True)
+
+    sqr_lin = ((predict_lin -  df_cv.iloc[index[1], 0])**2).sum()
+    sqr_log = ((predict_log -  df_cv.iloc[index[1], 0])**2).sum()
+    
+    if sqr_log < sqr_lin:
+        log_win[i] = 1
+
+print(f"Modelo log performou melhor em {100*log_win.mean()}% das vezes")
+```
+
+```{python}
+#| echo: false
+f, axs = plt.subplots(nrows=n,
+                      ncols=1,
+                      sharex=True,
+                      figsize=(8, 12))
+
+f.suptitle(f"Cross-Validation Subsets ({n})", fontsize=20)
+
+cv_generator = cv.split(df)
+
+for i in range(n):
+    index = next(cv_generator)
+
+    predict_lin = fit_predict(df_cv.iloc[index[0]], df_cv.iloc[index[1]], 12, False)
+    predict_log = fit_predict(df_cv.iloc[index[0]], df_cv.iloc[index[1]], 12, True)
+
+
+    axs[i].plot(df.iloc[index[0]], 'r')
+    axs[i].plot(df.iloc[index[1]], 'r--')
+    axs[i].plot(df.index[index[1]], predict_lin, 'b--')
+    axs[i].plot(df.index[index[1]], predict_log, 'g--')
+
+    axs[i].get_yaxis().set_visible(False)
+
+plt.tight_layout()
+plt.show()
+```
+
+<br></br>
+
+Nesse caso, o modelo que prevê o logaritimo, e tem por trás suposição de um crescimento exponencial e sazonalidade multiplicativa, performa acima e, pode-se dizer, de forma satisfatória. 
+
+## Variáveis Exógenas e Considerações Finais {#sec-variaveis-exogenas-e-consideracoes-finais}
+
+<p>Além de variáveis relacionadas ao mês e ano, poderia ter sido utilizado variáveis externa a demanda total, como preços e promoções. Uma ressalva quanto a variáveis exógenas em modelos de séries temporais é a incerteza da sua variável no momento de predição. Você sabe exatamente qual foi a temperatura média, quantos foram os clientes e quais promoções foram feitas no passado, mas provavelmente não sabe como serão no futuro e, desta forma, não é aconselhado usá-los. Isso porque em treino você usou o valor real e em produção vai usar a PREVISÃO do valor, contendo uma incerteza que vai produzir uma performance aquém do esperado. Pode-se usar variáveis com componentes de incerteza, contanto que se faça um estudo prévio para mensurar a performance do modelo trabalhando com a incerteza, sem incorrer em <i>data lakage</i>.
+
+Quanto ao uso da Regressão Linear em Séries Temporais, apesar de produzir uma performance interessante, recomenda-se o uso de modelos SARIMA que, além de poder comportar tendências polinomiais e exponenciais (tudo depende da especificação), permite estimar estruturas para os efeitos sazonais. Enquanto a Regressão Linear vai assumir efeitos fixos, SARIMA estimam estes efeitos, mas também analisando como os resíduos estão autocorrelacionados ao longo dessa do tempo. Em resumo, não há nada que modelos de regressão linear façam em séries temporais, que os modelos SARIMA não podem fazer, incluindo até mesmo o uso de variáveis exógenas na previsão (SARIMAX).
+</p>

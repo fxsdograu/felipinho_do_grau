@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.4.542">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Vinicius Aquino">
+<meta name="dcterms.date" content="2024-01-22">
+
+<title>Gradient Boosting Aplicado à Séries Temporais</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="qmd_file_files/libs/clipboard/clipboard.min.js"></script>
+<script src="qmd_file_files/libs/quarto-html/quarto.js"></script>
+<script src="qmd_file_files/libs/quarto-html/popper.min.js"></script>
+<script src="qmd_file_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="qmd_file_files/libs/quarto-html/anchor.min.js"></script>
+<link href="qmd_file_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="qmd_file_files/libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="qmd_file_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="qmd_file_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="qmd_file_files/libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Gradient Boosting Aplicado à Séries Temporais</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Vinicius Aquino </p>
+          </div>
+  </div>
+    
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">January 22, 2024</p>
+    </div>
+  </div>
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="sec-sumario" class="level2">
+<h2 class="anchored" data-anchor-id="sec-sumario">Sumário:</h2>
+<p>  <a href="#sec-sumario" class="quarto-xref">Sumário&nbsp;1</a> <br>   <a href="#sec-resumo" class="quarto-xref">Resumo&nbsp;2</a> <br>   <a href="#sec-definicao-modelo" class="quarto-xref">Definição do Modelo&nbsp;3</a> <br>     <a href="#sec-definicao-modelo-reg-nao-par" class="quarto-xref">Regressão Não Paramétrica&nbsp;3.1</a> <br>     <a href="#sec-definicao-modelo-gbdt" class="quarto-xref">Gradient Boosting Decision Tree (GBDT)&nbsp;3.2</a> <br>   <a href="#sec-modelando" class="quarto-xref">Modelando&nbsp;4</a> <br>     <a href="#sec-modelando-baixando-dados" class="quarto-xref">Baixando Dados&nbsp;4.1</a> <br>     <a href="#sec-metodologia" class="quarto-xref">Metodologia&nbsp;4.2</a> <br>     <a href="#sec-modelando-tend" class="quarto-xref">Modelando Tendência&nbsp;4.3</a> <br>     <a href="#sec-modelando-sazo" class="quarto-xref">Modelando Sazonalidade&nbsp;4.4</a> <br>     <a href="#sec-modelando-removendo-tend" class="quarto-xref">Removendo Tendência&nbsp;4.5</a> <br>   <a href="#sec-comentarios-finais" class="quarto-xref">Comentários Finais&nbsp;5</a> <br>   <a href="#sec-principais-fontes" class="quarto-xref">Principais Fontes&nbsp;6</a> <br></p>
+</section>
+<section id="sec-resumo" class="level2">
+<h2 class="anchored" data-anchor-id="sec-resumo">Resumo:</h2>
+<p>O presente texto é uma introdução aos modelos Gradient Boosting para séries temporais. Nele foram apresentados a classe de modelos de regressão não paramétrica Gradient Boosting Decision Tree (GBDT) e o XGBoost, uma subclasse dos modelos GBDT. Por fim, foi aplicado o XGBoost no contexto de séries temporais. O texto foi construído sob conceitos não tão difundidos no contexto de Machine Learning, como regressões não paramétricas, a fim de que o leitor possa generalizar para outros modelos, como KNN, LightGBM, Random Forest etc.</p>
+<p>Pacotes usados:</p>
+<div id="230aba8f" class="cell" data-execution_count="1">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> scipy <span class="im">import</span> stats <span class="im">as</span> st</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> calendar</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> pmdarima.model_selection <span class="im">import</span> SlidingWindowForecastCV</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.tree <span class="im">import</span> DecisionTreeRegressor</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> sklearn.linear_model <span class="im">import</span> LinearRegression</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> xgboost <span class="im">import</span> XGBRegressor</span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>plt.style.use(<span class="st">'ggplot'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="sec-definicao-modelo" class="level2">
+<h2 class="anchored" data-anchor-id="sec-definicao-modelo">Definição do Modelo:</h2>
+<section id="sec-definicao-modelo-reg-nao-par" class="level3">
+<h3 class="anchored" data-anchor-id="sec-definicao-modelo-reg-nao-par">Regressão Não Paramétrica:</h3>
+<p>Modelos da classe Gradient Boosting fazem parte de uma classe maior de modelos definida como regressão não paramétrica. Assim como modelos de regressão linear, essa é uma classe de modelo onde se usa variáveis explanatórias X para predizer uma quantidade da variável y, no geral a média.</p>
+<p>A grande diferença é que a regressão linear vai estar mais interessada nos parâmetros que explicam as relações entre X e y, fazendo certas suposições, como normalidade, por exemplo. Já as regressões não paramétricas vão tentar apenas achar uma relação entre as variáveis com suposições mais fracas da distribuição dos parâmetros.</p>
+<p>A ideia central é definir uma função <span class="math inline">\(r(x_{i})\)</span> tal que:</p>
+<p><span class="math display">\[y_{i} = r(x_{i}) + \epsilon_{i}\]</span></p>
+<p>No caso, já dando um spoiler, as funções <span class="math inline">\(r(x_{i})\)</span> serão construídas a partir de árvores de decisão. Evidentemente espera-se que <span class="math inline">\(E(\epsilon_{i}) = 0\)</span>.</p>
+<p>São exemplos de modelos de regressão Não linear: o algoritmo KNN, Random Forest, Suavização por Splines, Árvores de regressão etc.</p>
+</section>
+<section id="sec-definicao-modelo-gbdt" class="level3">
+<h3 class="anchored" data-anchor-id="sec-definicao-modelo-gbdt">Gradient Boosting Decision Tree:</h3>
+<p>Nesta lógica de se ter um estimador para a esperança de y a partir de covariáveis X, nasce os algoritmos Gradient Boosting Decision Tree (GBDT). Como o nome sugere, eles são baseados em árvores de decisão. Diferente do Random Forest, os algoritmos GBDT não usam as árvores de decisão em paralelo. Explica-se.</p>
+<p>No Random Forest se tem várias árvores distintas vindas de reamostragens aleatórias de um conjunto de dados, onde a previsão é a média de todas as árvores juntas. No caso dos algoritmos GBDT é usado o processo de “Bosting”, onde se treina sequencialmente novas árvores de decisão que corrigem os erros das anteriores.</p>
+<p>Isso é, a primeira árvore é treinada com os dados. A segunda com os resíduos que essa primeira árvore deixou. A terceira com os resíduos da segunda e assim sucessivamente. É um processo iterativo.</p>
+<p>Um exemplo abaixo inspirado no livro Mãos à Obra: Aprendizado de Máquina com Scikit-Learn &amp; TensorFlow:</p>
+<p>Gerando dados aleatórios:</p>
+<div id="14db718c" class="cell" data-execution_count="2">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>np.random.seed(<span class="dv">633</span>)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> np.random.uniform(<span class="op">-</span><span class="dv">5</span>, <span class="dv">5</span>, <span class="dv">100</span>)</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> X <span class="op">**</span> <span class="dv">2</span> <span class="op">+</span> <span class="dv">5</span> <span class="op">+</span> np.random.normal(<span class="dv">0</span>, <span class="dv">2</span>, <span class="dv">100</span>)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>f, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>ax.scatter(x<span class="op">=</span>X, </span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>           y<span class="op">=</span>y, </span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>           color<span class="op">=</span><span class="st">'k'</span>)</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Gradient Boosting Decision Tree"</span>)           </span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-3-output-1.png" width="641" height="433" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Treinando um GBDT (árvores em sequência):</p>
+<div id="5e70abdd" class="cell" data-execution_count="3">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>X <span class="op">=</span> X.reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>tree_1 <span class="op">=</span> DecisionTreeRegressor(max_depth<span class="op">=</span><span class="dv">3</span>).fit(X, y)</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>resid_1 <span class="op">=</span> y <span class="op">-</span> tree_1.predict(X<span class="op">=</span>X) <span class="co"># Residuo da primeira Arvore</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>tree_2 <span class="op">=</span> DecisionTreeRegressor(max_depth<span class="op">=</span><span class="dv">3</span>).fit(X, resid_1)</span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>resid_2 <span class="op">=</span> resid_1 <span class="op">-</span> tree_2.predict(X<span class="op">=</span>X) <span class="co"># Residuo da segunda Arvore</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>tree_3 <span class="op">=</span> DecisionTreeRegressor(max_depth<span class="op">=</span><span class="dv">3</span>).fit(X, resid_2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Dessa forma, cada árvore se especializou em aprender a “consertar” os erros das arvores que vieram antes. Voltando a ideia de regressão não paramétrica, o modelo inicial dado é:</p>
+<p><span class="math display">\[y_{i} = r_{1}(x_{i}) + \epsilon_{1i} = tree_{1}(x_{i}) + \epsilon_{1i}\]</span></p>
+<p>A árvore 2 é treinanda com os resíduos <span class="math inline">\(\epsilon_{1}\)</span> da árvore 1:</p>
+<p><span class="math display">\[(y_{i}-tree_{1}(x_{i})) = \epsilon_{1i} = r_{2}(x_{i}) + \epsilon_{2i} = tree_{2}(x_{i}) + \epsilon_{2i}\]</span></p>
+<p>Por fim, a árvore 3 é treinada com os resíduos da árvore 2, isso é:</p>
+<p><span class="math display">\[(y_{i}-tree_{1}(x_{i})) - tree_{2}(x_{i}) = \epsilon_{1i} = r_{3}(x_{i}) + \epsilon_{3i} = tree_{3}(x_{i}) + \epsilon_{3i}\]</span></p>
+<p>A idéia intuitiva é que se adicione novas árvores conforme isso reduza os erros em teste, até que não seja possível mais entender os padrões em <span class="math inline">\(\epsilon_{q}\)</span>.</p>
+<p>Pode-se reescrever a equação acima como:</p>
+<p><span class="math display">\[y_{i}-tree_{1}(x_{i}) - tree_{2}(x_{i}) - tree_{3}(x_{i}) = \epsilon_{3i}\]</span></p>
+<p><span class="math display">\[y_{i} = tree_{1}(x_{i}) + tree_{2}(x_{i}) + tree_{3}(x_{i}) + \epsilon_{3i}\]</span></p>
+<p>Ou seja, a previsão da i-esima observação <span class="math inline">\(y_{i}\)</span> é a soma das previsões das árvores. Do ponto de vista da regressão não paramétrica, o modelo é dado por:</p>
+<p><span class="math display">\[y_{i} = r(x_{i}) + \epsilon_{i} = \sum^{q}_{i=1}tree_{i}(x_i) + \epsilon_{i}\]</span></p>
+<p>Onde cada árvore <span class="math inline">\(tree_i\)</span> foi treinada sequencialmente.</p>
+<p>Em python, o modelo treinado acima seria dado como:</p>
+<div id="4fce91bd" class="cell" data-execution_count="4">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>x_space <span class="op">=</span> np.arange(<span class="op">-</span><span class="dv">5</span>, <span class="dv">6</span>).reshape(<span class="op">-</span><span class="dv">1</span>, <span class="dv">1</span>)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>y_pred <span class="op">=</span> <span class="bu">sum</span>(tree.predict(x_space) <span class="cf">for</span> tree <span class="kw">in</span> (tree_1, tree_2, tree_3))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Visualizando o modelo:</p>
+<div id="41f12047" class="cell" data-execution_count="5">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>f, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>ax.scatter(x<span class="op">=</span>X, </span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>           y<span class="op">=</span>y, </span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>           color<span class="op">=</span><span class="st">'k'</span>)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>ax.plot(x_space, y_pred, label<span class="op">=</span><span class="st">"GBDT"</span>)</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>plt.plot(x_space, x_space <span class="op">**</span> <span class="dv">2</span> <span class="op">+</span> <span class="dv">5</span>, label<span class="op">=</span><span class="st">"Modelo Gerador"</span>)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>plt.legend()</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Gradient Boosting Decision Tree"</span>) </span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-6-output-1.png" width="641" height="433" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Novamente, é válido reforçar: ninguém está preocupado se o erro padrão dos nós destas árvores tem distribuição normal, são não-viesados, assintóticos etc. Por isso trata-se de uma regressão não paramétrica.</p>
+<p>O game change a partir de agora será como é adicionado estas árvores e como elas são modeladas. E é aí que vai residir a diferença entre o XGBoost e o LightGBM. No geral, a diferença vai ser de performance computacional e de estratégia da construção destas árvores.</p>
+<p>A partir de agora se usará o XGBoost sem tunagem de hiper-parâmetros, dado que a idéia é apenas entender sua aplicação em séries temporais.</p>
+</section>
+</section>
+<section id="sec-modelando" class="level2">
+<h2 class="anchored" data-anchor-id="sec-modelando">Modelando: XGBoost vs Regressão Linear para Previsão de Demanda</h2>
+<section id="sec-modelando-baixando-dados" class="level3">
+<h3 class="anchored" data-anchor-id="sec-modelando-baixando-dados">Baixando os dados:</h3>
+<p>Os dados da venda de cerveja no USA podem ser acessados diretamente deste link do github <a href="https://raw.githubusercontent.com/flo7up/relataly_data/main/alcohol_sales/BeerWineLiquor.csv">aqui</a>.</p>
+<div id="63d7e39b" class="cell" data-execution_count="7">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>df <span class="op">=</span> pd.read_csv(path, parse_dates<span class="op">=</span>[<span class="st">'date'</span>], index_col<span class="op">=</span>[<span class="st">'date'</span>])</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(df.tail())</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>            beer
+date            
+2018-08-01  4898
+2018-09-01  4598
+2018-10-01  4737
+2018-11-01  5130
+2018-12-01  6370</code></pre>
+</div>
+</div>
+<div id="c71fd717" class="cell" data-execution_count="8">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>f, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>plt.plot(df.beer, <span class="st">'k'</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Beer Sales"</span>)</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-9-output-1.png" width="669" height="433" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="sec-metodologia" class="level3">
+<h3 class="anchored" data-anchor-id="sec-metodologia">Metodologia:</h3>
+<p>A idéia da análise é fazer um comparativo de desempenho conforme se aumenta a sofisticação do XGBoost. Serão feitas validações cruzadas onde o objetivo do modelo será prever a demanda total do ano posterior. Serão usados 72 meses para prever a demanda dos próximos 12, como pode ser visto abaixo:</p>
+<div id="d3ce298e" class="cell" data-execution_count="9">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>cv <span class="op">=</span> SlidingWindowForecastCV(step<span class="op">=</span><span class="dv">12</span>, </span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>                             h<span class="op">=</span><span class="dv">12</span>, </span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>                             window_size<span class="op">=</span><span class="dv">72</span>)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>cv_generator <span class="op">=</span> cv.split(df)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(cv.split(df)))</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>f, axs <span class="op">=</span> plt.subplots(nrows<span class="op">=</span>n,</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>                      ncols<span class="op">=</span><span class="dv">1</span>,</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>                      sharex<span class="op">=</span><span class="va">True</span>,</span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>                      figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">12</span>))</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>f.suptitle(<span class="ss">f"Cross-Validation Subsets (</span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">)"</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n):</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    index <span class="op">=</span> <span class="bu">next</span>(cv_generator)</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    axs[i].plot(df.iloc[index[<span class="dv">0</span>]], <span class="st">'k'</span>)</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    axs[i].plot(df.iloc[index[<span class="dv">1</span>]], <span class="st">'r'</span>)</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    axs[i].get_yaxis().set_visible(<span class="va">False</span>)</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>plt.tight_layout()</span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-10-output-1.png" width="757" height="1134" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Além disso, seguindo a vibe não paramétrica do texto, será feito uso de um teste de hipótese binomial para validar o vencedor. A ideia do teste é bem simples:</p>
+<p>Supõe-se que os modelos têm a mesma performance. Se isso é verdade, então a probabilidade de um modelo ter uma acurácia maior que o outro é 50%, o mero acaso.</p>
+<p>Dessa forma, espera-se que o desempenho de cada modelo tenha uma distribuição binomial de média <span class="math inline">\(0.5n\)</span> nos n testes. Se for observado um valor que faça sentido a luz dessa hipótese, então os modelos tem performance similar.</p>
+<p>Do contrário, rejeita-se a hipótese.</p>
+<p>Aqui, uma função em python que executa o teste e retorna um print() para melhor entendimento do usuário.</p>
+<div id="db600a28" class="cell" data-execution_count="10">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test(a, b, alpha <span class="op">=</span> <span class="fl">.05</span>):</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    n <span class="op">=</span> <span class="bu">len</span>(a)</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    a_venceu <span class="op">=</span> (a<span class="op">&gt;</span>b).<span class="bu">sum</span>()</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    b_venceu <span class="op">=</span> (b<span class="op">&gt;</span>a).<span class="bu">sum</span>()</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Testes: </span><span class="sc">{</span>n<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"A venceu: </span><span class="sc">{</span>a_venceu<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"B venceu: </span><span class="sc">{</span>b_venceu<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>()</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>            </span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> a_venceu <span class="op">&gt;=</span> b_venceu:</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>        vencedor <span class="op">=</span> <span class="st">"A"</span></span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>        k <span class="op">=</span> a_venceu</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>        vencedor <span class="op">=</span> <span class="st">"B"</span></span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>        k <span class="op">=</span> b_venceu</span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    resultado <span class="op">=</span> st.binomtest(k<span class="op">=</span>k, n<span class="op">=</span>n, </span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>                             p<span class="op">=</span><span class="fl">.5</span>, alternative<span class="op">=</span><span class="st">'greater'</span>)</span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span> resultado.pvalue <span class="op">&gt;</span> alpha:</span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Não há evidências para dizer que o </span><span class="sc">{</span>vencedor<span class="sc">}</span><span class="ss"> é o melhor modelo"</span>)</span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span>:</span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="ss">f"Há evidências para dizer que o </span><span class="sc">{</span>vencedor<span class="sc">}</span><span class="ss"> é o melhor modelo"</span>)</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"p valor: "</span>, <span class="bu">round</span>(resultado.pvalue, <span class="dv">3</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Esse teste supõe que as amostras são independentes, o que não é bem verdade, uma vez que o mesmo ano será usado até 6x para treino. De toda forma, será um bom norte.</p>
+</section>
+<section id="sec-modelando-tend" class="level3">
+<h3 class="anchored" data-anchor-id="sec-modelando-tend">Modelando a Tendência:</h3>
+<p>É bem nítido que há uma tendência na série. Isso é, intrisicamente no Processo Estocástico (PE) gerador da série há alguma função do tempo que, sistematicamente, soma algum incremento na série, multiplique ela por um fator &gt; 1 ou faça ambos ao mesmo tempo.</p>
+<div id="b5c645bb" class="cell" data-execution_count="11">
+<div class="cell-output cell-output-stderr">
+<pre><code>C:\Users\vinicius.aquino@grupoboticario.com.br\AppData\Local\Temp\ipykernel_23244\3063308096.py:2: FutureWarning: 'Y' is deprecated and will be removed in a future version, please use 'YE' instead.
+  plt.plot(df.beer.resample('1Y').sum(), 'k')</code></pre>
+</div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-12-output-2.png" width="677" height="433" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Por uma questão de simplicidade de modelo, será usado uma relação linear para descrever essa suposta função. Nesse caso, a abordagem da regressão linear não será como a descrita no texto <a href="https://wikinods.github.io/projects/Textos%20Autorais/Estatistica/S%C3%A9ries%20Temporais/Regress%C3%A3o%20Linear%20Aplicada%20%C3%A0%20S%C3%A9ries%20Temporais/index.html">Regressão Linear Aplicada à Séries Temporais</a> (mais “mecanística”), mas será tal qual é usada nos modelos de machine learning no contexto de séries temporais. O modelo da demanda no caso da regressão linear será:</p>
+<p><span class="math display">\[y_{t} = \beta_{0} + \beta_{trend}t\]</span></p>
+<p>A interpretação dos parâmetros <span class="math inline">\(\beta_{0}\)</span> e <span class="math inline">\(\beta_{1}\)</span> é bem intuitiva. Como o input é o ano, o <span class="math inline">\(\beta_{1}\)</span> é a variação da demanda ano a ano e o <span class="math inline">\(\beta_{0}\)</span> seria a “demanda inicial” no ano 0 (não faz muito sentido mesmo, mas tratando de interceptos isso é bem comum). No caso, não tem como saber exatamente como será o modelo do XGBoost e a vantagem dessa classe de modelos é exatamente essa. Por se tratar de uma regressão não paramétrica, ele encontrará, nos dados, a melhor forma de descrever essa tendência em função do tempo.</p>
+<p>Criando uma função para automatizar o processo de data featuring para a tendência:</p>
+<div id="2e3faad6" class="cell" data-execution_count="12">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> data_featuring_trend(df):</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> df.copy()</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    X.loc[:, <span class="st">'year'</span>] <span class="op">=</span> [i.year <span class="cf">for</span> i <span class="kw">in</span> X.index]</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> X.drop(labels<span class="op">=</span>[<span class="st">'beer'</span>],</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>                   axis<span class="op">=</span><span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Criando o modelo para os 21 backtest:</p>
+<div id="f6e338fd" class="cell" data-execution_count="13">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>cv_generator <span class="op">=</span> cv.split(df)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(cv.split(df)))</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>acc_reg_1 <span class="op">=</span> []</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>acc_xgb_1 <span class="op">=</span> []</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n):</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    index <span class="op">=</span> <span class="bu">next</span>(cv_generator)</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Separando teste do treino</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>    y_train <span class="op">=</span> df.iloc[index[<span class="dv">0</span>]].copy()</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    X_train <span class="op">=</span> data_featuring_trend(y_train)</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>    y_test <span class="op">=</span> df.iloc[index[<span class="dv">1</span>]].copy()</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a>    X_test <span class="op">=</span> data_featuring_trend(y_test)</span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Treinando modelos</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>    reg <span class="op">=</span> LinearRegression(fit_intercept<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>    reg.fit(X_train.values, y_train)</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>    y_reg_pred <span class="op">=</span> reg.predict(X<span class="op">=</span>X_test.values)</span>
+<span id="cb13-21"><a href="#cb13-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-22"><a href="#cb13-22" aria-hidden="true" tabindex="-1"></a>    xgb <span class="op">=</span> XGBRegressor()</span>
+<span id="cb13-23"><a href="#cb13-23" aria-hidden="true" tabindex="-1"></a>    xgb.fit(X_train.values, y_train)</span>
+<span id="cb13-24"><a href="#cb13-24" aria-hidden="true" tabindex="-1"></a>    y_xgb_pred <span class="op">=</span> xgb.predict(X<span class="op">=</span>X_test.values)</span>
+<span id="cb13-25"><a href="#cb13-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-26"><a href="#cb13-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-27"><a href="#cb13-27" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Salvando acurácia dos modelos</span></span>
+<span id="cb13-28"><a href="#cb13-28" aria-hidden="true" tabindex="-1"></a>    acc_reg_1.append(<span class="dv">1</span><span class="op">-</span><span class="bu">abs</span>(y_test.beer.values.<span class="bu">sum</span>()<span class="op">-</span> y_reg_pred.<span class="bu">sum</span>())<span class="op">/</span>y_test.beer.values.<span class="bu">sum</span>())</span>
+<span id="cb13-29"><a href="#cb13-29" aria-hidden="true" tabindex="-1"></a>    acc_xgb_1.append(<span class="dv">1</span><span class="op">-</span><span class="bu">abs</span>(y_test.beer.values.<span class="bu">sum</span>()<span class="op">-</span> y_xgb_pred.<span class="bu">sum</span>())<span class="op">/</span>y_test.beer.values.<span class="bu">sum</span>())</span>
+<span id="cb13-30"><a href="#cb13-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-31"><a href="#cb13-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-32"><a href="#cb13-32" aria-hidden="true" tabindex="-1"></a>acc_reg_1,acc_xgb_1 <span class="op">=</span> np.array(acc_reg_1), np.array(acc_xgb_1)</span>
+<span id="cb13-33"><a href="#cb13-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(acc_reg_1)</span>
+<span id="cb13-34"><a href="#cb13-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb13-35"><a href="#cb13-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(acc_xgb_1)</span>
+<span id="cb13-36"><a href="#cb13-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb13-37"><a href="#cb13-37" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"XGBoost vence: </span><span class="sc">{</span>(acc_xgb_1<span class="op">&gt;</span>acc_reg_1)<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">round</span>(<span class="dv">100</span><span class="op">*</span>(acc_xgb_1<span class="op">&gt;</span>acc_reg_1).<span class="bu">sum</span>()<span class="op">/</span>n, <span class="dv">2</span>)<span class="sc">}</span><span class="ss"> %)"</span>)</span>
+<span id="cb13-38"><a href="#cb13-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb13-39"><a href="#cb13-39" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"regressão vence: </span><span class="sc">{</span>(acc_xgb_1<span class="op">&lt;</span>acc_reg_1)<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">round</span>(<span class="dv">100</span><span class="op">*</span>(acc_xgb_1<span class="op">&lt;</span>acc_reg_1).<span class="bu">sum</span>()<span class="op">/</span>n, <span class="dv">2</span>)<span class="sc">}</span><span class="ss"> %)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[0.94956268 0.96975878 0.95273909 0.9895277  0.96724426 0.95933134
+ 0.996359   0.98306074 0.94584999 0.95548503 0.9947364  0.96824616
+ 0.97035176 0.97464616 0.98857959 0.97895506 0.97236466 0.97753643
+ 0.97691234 0.9985189  0.99684608]
+
+[0.94874313 0.95867934 0.92875407 0.96239128 0.99086754 0.98112817
+ 0.94656535 0.95894754 0.93200233 0.94460743 0.96516789 0.98158768
+ 0.97207787 0.97662276 0.95552783 0.96286553 0.95423104 0.95521251
+ 0.94920657 0.96978884 0.95652298]
+
+XGBoost vence: 5 (23.81 %)
+
+regressão vence: 16 (76.19 %)</code></pre>
+</div>
+</div>
+<p>Como pode ser visto, o XGBoost perfoma acima da regressão linear em somente 5 de 21 casos (23%). Será que a regressão realmente performa acima ou esse valor pode ter vindo do acaso? Bom, testa-se a hipótese de que a regressão linear tem probabilidade 50% de vencer o XGBoost.</p>
+<div id="b10dbc71" class="cell" data-execution_count="14">
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-15-output-1.png" width="674" height="454" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<div id="442db338" class="cell" data-execution_count="15">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>test(a <span class="op">=</span> acc_reg_1,</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>     b <span class="op">=</span> acc_xgb_1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Testes: 21
+A venceu: 16
+B venceu: 5
+
+Há evidências para dizer que o A é o melhor modelo
+p valor:  0.013</code></pre>
+</div>
+</div>
+<p>Hipótese rejeitada. Isso significa que, sim, pode-se afirmar que a regressão produz uma acurácia maior que o XGBoost. A probabilidade dela não ser maior e ser observada esse placar ou um mais raro é somente 1.3%.</p>
+<p>O ponto agora é discutir a natureza desses resultados. Afinal, o que a regressão linear entendeu que o XgBoost não entendeu? O que pode explicar esse melhor desempenho do modelo mais simples?</p>
+<p>Para responder essa questão, o próximo passo é explorar pelo menos o último modelo treinado e entender o que aconteceu. Fazendo um gráfico de dispersão das observações da série em termos das variáveis de entrada (somente o ano):</p>
+<div id="8c5faa5f" class="cell" data-execution_count="16">
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-17-output-1.png" width="658" height="434" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<div id="da912b7f" class="cell" data-execution_count="17">
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-18-output-1.png" width="658" height="433" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>O primeiro ponto é quanto a previsão “linear”. Sim, naturalmente a previsão vai ser uma reta horizontal. Dado que em todos os 12 pontos do ano há o mesmo input (o ano corrente).</p>
+<p>O segundo ponto é a fraquíssima capacidade do XGboost em extrapolar a previsão para fora do espaço de treino das covariáveis. Bom, isso não é exatamente um problema exclusivo do XGBoost. Explica-se.</p>
+<p>Na verdade, regressões, no geral, sem qualquer exceção, têm esse problema de extrapolação do espaço das covariáveis. A regressão linear também sofre com isso. Inclusive, quando se aprende regressão linear, aprende-se que deve-se evitar essa extrapolação. Não a toa, ela não venceu em todas, mas na maioria. E, nesse caso, performou melhor por ser mais simples. É um modelo que apenas estima a varição ano a ano média.</p>
+<p>Analisando as nuances do teste, o que foi feito, em termos práticos, foi ensinar um modelo o padrão da venda de cerveja entre os inputs de 2012 a 2017. No entanto, o que foi exigido foi prever como vai ser essa venda em 2018. Parece até sacanagem com o coitado. De fato, ele entendeu a demanda entre 2012 e 2017, mas a falta de observações do futuro não permitiu ele entender o seu comportamento.</p>
+<p>Entendido o porquê o XGBoost performou tão mal, fica, portanto, entendido que ele deve ser descartado, posto que em todos os problemas de séries temporais haverá essa necessidade de extrapolação? A resposta é não. Tem como contornar esse problema, inclusive, aplicando metodologias inspiradas nos modelos clássicos de séries temporais, como remoção de tendência diferenciando a série.</p>
+<p>Por hora, fica no radar essa eventual limitação no que tange ao intervalo de predição.</p>
+</section>
+<section id="sec-modelando-sazo" class="level3">
+<h3 class="anchored" data-anchor-id="sec-modelando-sazo">Modelando a Sazonalidade:</h3>
+<p>A série tem um claro fator sazonal que pode ser observado na vizualização abaixo:</p>
+<div id="38736564" class="cell" data-execution_count="18">
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-19-output-1.png" width="658" height="454" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>E, agora, que já há uma previsão da tendência, o próximo passo é saber o quanto a demanda vai variar em cada mês em relação ao “nível” médio anual. Dessa forma, o modelo de regressão linear ganha essa cara:</p>
+<p><span class="math display">\[y_{t} = \beta_{0} + \beta_{trend}t + \beta_{jan}x_{jan} + \beta_{fev}x_{fev}+ ... + \beta_{nov}x_{nov}\]</span></p>
+<p>Onde as variáveis <span class="math inline">\(x_{k}'s\)</span> são variáveis binárias que correspondem ao mês. Isso é, <span class="math inline">\(x_{jan}\)</span> vale 1 se o mês for janeiro, 0 caso contrário. E, portanto, <span class="math inline">\(\beta_{jan}\)</span> é o “prêmio” que se soma a demanda por ser janeiro, podendo ser positivo ou não. O input da regressão linear DEVE ser feito via variáveis dummies, dado que o mês é uma variável qualitativa nominal e o modelo é linear. Não há dezembro nas variáveis dummies por uma questão de multicolinearidade (o intercepto seria uma relação lienar perfeita de todas as variáveis de sazonalidade).</p>
+<p>Novamente, não é possível saber como o XGBoost vai ser interpretado, dado que trata-se de uma regressão não paramétrica. O input da sazonalidade PODE ser dado como se o mês fosse uma variável numérica, dado que o modelo é baseado em árvores de decisão e conseguiria “captar” o movimento da sazonalidade. No entanto, será usado, também, variáveis dummies.</p>
+<p>Criando funções que adicionam variáveis de sazonalidade:</p>
+<div id="79d0f8b9" class="cell" data-execution_count="19">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> data_featuring_sazo(df: pd.DataFrame) <span class="op">-&gt;</span> pd.DataFrame:</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> df.copy()</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    X.loc[:, <span class="st">'year'</span>] <span class="op">=</span> [i.year <span class="cf">for</span> i <span class="kw">in</span> X.index]</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    X.loc[:, <span class="st">'month'</span>] <span class="op">=</span> [i.month <span class="cf">for</span> i <span class="kw">in</span> X.index]</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    X_sazo <span class="op">=</span> pd.get_dummies(X[<span class="st">'month'</span>])</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    X <span class="op">=</span> pd.concat([X, X_sazo], axis<span class="op">=</span><span class="dv">1</span>)</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> X.drop(labels<span class="op">=</span>[<span class="st">'month'</span>, <span class="st">'beer'</span>, <span class="dv">12</span>],</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>                    axis<span class="op">=</span><span class="dv">1</span>).astype(<span class="st">'int'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Vizualizando quais seriam os inputs:</p>
+<div id="1445f190" class="cell" data-execution_count="20">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(data_featuring_sazo(df.iloc[<span class="op">-</span><span class="dv">12</span>:]).reset_index(drop<span class="op">=</span><span class="va">True</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>    year  1  2  3  4  5  6  7  8  9  10  11
+0   2018  1  0  0  0  0  0  0  0  0   0   0
+1   2018  0  1  0  0  0  0  0  0  0   0   0
+2   2018  0  0  1  0  0  0  0  0  0   0   0
+3   2018  0  0  0  1  0  0  0  0  0   0   0
+4   2018  0  0  0  0  1  0  0  0  0   0   0
+5   2018  0  0  0  0  0  1  0  0  0   0   0
+6   2018  0  0  0  0  0  0  1  0  0   0   0
+7   2018  0  0  0  0  0  0  0  1  0   0   0
+8   2018  0  0  0  0  0  0  0  0  1   0   0
+9   2018  0  0  0  0  0  0  0  0  0   1   0
+10  2018  0  0  0  0  0  0  0  0  0   0   1
+11  2018  0  0  0  0  0  0  0  0  0   0   0</code></pre>
+</div>
+</div>
+<p>Criando o modelo para os 21 backtest:</p>
+<div id="550749f8" class="cell" data-execution_count="21">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>cv_generator <span class="op">=</span> cv.split(df)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(cv.split(df)))</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>acc_reg_2 <span class="op">=</span> []</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>acc_xgb_2 <span class="op">=</span> []</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n):</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>    index <span class="op">=</span> <span class="bu">next</span>(cv_generator)</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Separando teste do treino</span></span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    y_train <span class="op">=</span> df.iloc[index[<span class="dv">0</span>]].copy()</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    X_train <span class="op">=</span> data_featuring_sazo(y_train)</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>   </span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>    y_test <span class="op">=</span> df.iloc[index[<span class="dv">1</span>]].copy()</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>    X_test <span class="op">=</span> data_featuring_sazo(y_test)</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>   </span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Treinando modelos</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>    reg <span class="op">=</span> LinearRegression(fit_intercept<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a>    reg.fit(X_train.values, y_train)</span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>    y_reg_pred <span class="op">=</span> reg.predict(X<span class="op">=</span>X_test.values)</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>    xgb <span class="op">=</span> XGBRegressor()</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>    xgb.fit(X_train.values, y_train)</span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>    y_xgb_pred <span class="op">=</span> xgb.predict(X<span class="op">=</span>X_test.values)</span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Salvando acurácia dos modelos</span></span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a>    acc_reg_2.append(<span class="dv">1</span><span class="op">-</span><span class="bu">abs</span>(y_test.beer.values.<span class="bu">sum</span>()<span class="op">-</span> y_reg_pred.<span class="bu">sum</span>())<span class="op">/</span>y_test.beer.values.<span class="bu">sum</span>())</span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a>    acc_xgb_2.append(<span class="dv">1</span><span class="op">-</span><span class="bu">abs</span>(y_test.beer.values.<span class="bu">sum</span>()<span class="op">-</span> y_xgb_pred.<span class="bu">sum</span>())<span class="op">/</span>y_test.beer.values.<span class="bu">sum</span>())</span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a>acc_reg_2,acc_xgb_2 <span class="op">=</span> np.array(acc_reg_2), np.array(acc_xgb_2)</span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(acc_reg_2)</span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(acc_xgb_2)</span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"XGBoost vence: </span><span class="sc">{</span>(acc_xgb_2<span class="op">&gt;</span>acc_reg_2)<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">round</span>(<span class="dv">100</span><span class="op">*</span>(acc_xgb_2<span class="op">&gt;</span>acc_reg_2).<span class="bu">sum</span>()<span class="op">/</span>n, <span class="dv">2</span>)<span class="sc">}</span><span class="ss"> %)"</span>)</span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"regressão vence: </span><span class="sc">{</span>(acc_xgb_2<span class="op">&lt;</span>acc_reg_2)<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">round</span>(<span class="dv">100</span><span class="op">*</span>(acc_xgb_2<span class="op">&lt;</span>acc_reg_2).<span class="bu">sum</span>()<span class="op">/</span>n, <span class="dv">2</span>)<span class="sc">}</span><span class="ss"> %)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[0.94956268 0.96975878 0.95273909 0.9895277  0.96724426 0.95933134
+ 0.996359   0.98306074 0.94584999 0.95548503 0.9947364  0.96824616
+ 0.97035176 0.97464616 0.98857959 0.97895506 0.97236466 0.97753643
+ 0.97691234 0.9985189  0.99684608]
+
+[0.948137   0.95846651 0.92909444 0.96159648 0.99043659 0.98197803
+ 0.94585835 0.95772977 0.93218758 0.94337105 0.96446503 0.98153546
+ 0.97121937 0.9757154  0.95458422 0.96269496 0.95324182 0.95416837
+ 0.9484232  0.96875804 0.9556873 ]
+
+XGBoost vence: 5 (23.81 %)
+
+regressão vence: 16 (76.19 %)</code></pre>
+</div>
+</div>
+<p>E o XGBoost segue performando ABAIXO da regressão linear. Dando uma explorada na forma com que ele lidou com os dados:</p>
+<div id="eae995d9" class="cell" data-execution_count="22">
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-23-output-1.png" width="658" height="434" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Dessa vez, a previsão tá com mais carinha de série temporal. No caso, em termos práticos, cada efeito sazonal estimado somou um fator (positivo ou negativo) naquele nível inicialmente estimado para a regressão linear.</p>
+<p>O XGBoost nadou de braçada em treino, sequer é possível ver a linha dos dados em treino. No entanto, em teste ele subestimou a demanda. E isso se deve, novamente ao problema da extrapolação no espaço da covariáveis ano.</p>
+<p>Analizando previsão sob as covariáveis:</p>
+<p>Nas covariáveis de tendência:</p>
+<div id="fa3faef5" class="cell" data-execution_count="23">
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-24-output-1.png" width="658" height="433" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Nas covariáveis de sazonalidade:</p>
+<div id="7d509d1c" class="cell" data-execution_count="24">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>f, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> year <span class="kw">in</span> y_train.index.year.unique():</span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>    df_temp <span class="op">=</span> y_train.loc[y_train.index.year <span class="op">==</span> year]</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    ax.plot(df_temp.index.month, df_temp.beer, color<span class="op">=</span><span class="st">'k'</span>)</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>ax.plot(y_test.index.month, y_xgb_pred, <span class="st">'b--'</span>, label<span class="op">=</span><span class="st">'XGBoost'</span>)</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>ax.plot(y_test.index.month, y_reg_pred, <span class="st">'g--'</span>, label<span class="op">=</span><span class="st">'Regressão'</span>)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>ax.plot(y_test.index.month, y_test, <span class="st">'r--'</span>, label<span class="op">=</span><span class="st">'Teste'</span>)</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>plt.ylim(<span class="dv">0</span>)</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>plt.legend()</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">"Mês"</span>)</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Beer Sales (Mês)"</span>)</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-25-output-1.png" width="658" height="454" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>É percepitível que o XGBoost pegou bem o padrão sazonal, no entanto, erra em acertar o nível (tendência). Novamente o problema citado na seção anterior.</p>
+</section>
+<section id="sec-modelando-removendo-tend" class="level3">
+<h3 class="anchored" data-anchor-id="sec-modelando-removendo-tend">Removendo Tendência:</h3>
+<p>Será feito uma transformação na variável <span class="math inline">\(y_{t}\)</span> a fim de que a previsão dela seja “facilitada” para os modelos.</p>
+<div id="4cf23503" class="cell" data-execution_count="25">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>f, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>ax.plot(df.diff().dropna()[<span class="st">'beer'</span>], <span class="st">'k'</span>)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Variação Nominal"</span>)</span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-26-output-1.png" width="680" height="434" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>A série continua, ainda, não estacionária, posto que sua variância aumenta em função do tempo. A gente pode remover essa heterocedasticidade usando o logaritmo da série (e o derivando, dado que ele também não é estacionário):</p>
+<div id="229d39d4" class="cell" data-execution_count="26">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>f, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>ax.plot((np.log(df[<span class="st">'beer'</span>])).diff().dropna(), <span class="st">'k'</span>)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Variação Nominal do Logaritmo"</span>)</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-27-output-1.png" width="668" height="434" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Neste caso, a série passa a se comportar de forma estacionária. Rodando os modelos novamente:</p>
+<div id="9846b2d5" class="cell" data-execution_count="27">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>cv_generator <span class="op">=</span> cv.split(df)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>n <span class="op">=</span> <span class="bu">len</span>(<span class="bu">list</span>(cv.split(df)))</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>acc_reg_3 <span class="op">=</span> []</span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>acc_xgb_3 <span class="op">=</span> []</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(n):</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    index <span class="op">=</span> <span class="bu">next</span>(cv_generator)</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Separando teste do treino</span></span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>    y_train <span class="op">=</span> df.iloc[index[<span class="dv">0</span>]].copy()</span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>    y_test <span class="op">=</span> df.iloc[index[<span class="dv">1</span>]].copy()</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Fazendo a transformação</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>    df_temp <span class="op">=</span> np.log(pd.concat([y_train, y_test])).diff().dropna()</span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    y_train, y_test <span class="op">=</span> df_temp.loc[y_train.index[<span class="dv">1</span>:]], df_temp.loc[y_test.index]</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>    X_train <span class="op">=</span> data_featuring_sazo(y_train)</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>    X_test <span class="op">=</span> data_featuring_sazo(y_test)</span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Treinando modelos</span></span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>    reg <span class="op">=</span> LinearRegression(fit_intercept<span class="op">=</span><span class="va">True</span>)</span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>    reg.fit(X_train.values, y_train)</span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>    y_reg_pred <span class="op">=</span> reg.predict(X<span class="op">=</span>X_test.values)</span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>    xgb <span class="op">=</span> XGBRegressor()</span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>    xgb.fit(X_train.values, y_train)</span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a>    y_xgb_pred <span class="op">=</span> xgb.predict(X<span class="op">=</span>X_test.values)</span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Retornando as variáveis para escala padrão (integrando):</span></span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>    y_test <span class="op">=</span> np.array([<span class="dv">0</span>] <span class="op">+</span> <span class="bu">list</span>(y_train.beer.values) <span class="op">+</span> <span class="bu">list</span>(y_test.beer.values))</span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a>    y_test <span class="op">=</span> np.exp(np.log(df.iloc[index[<span class="dv">0</span>][<span class="dv">0</span>], <span class="dv">0</span>]) <span class="op">+</span> y_test.cumsum())[<span class="op">-</span><span class="dv">12</span>:]</span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>    y_reg_pred <span class="op">=</span> np.array([<span class="dv">0</span>] <span class="op">+</span> <span class="bu">list</span>(reg.predict(X<span class="op">=</span>X_train.values)[:,<span class="dv">0</span>]) <span class="op">+</span> <span class="bu">list</span>(y_reg_pred[:,<span class="dv">0</span>]))</span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a>    y_reg_pred <span class="op">=</span> np.exp(np.log(df.iloc[index[<span class="dv">0</span>][<span class="dv">0</span>], <span class="dv">0</span>]) <span class="op">+</span> y_reg_pred.cumsum())</span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>    y_xgb_pred <span class="op">=</span> np.array([<span class="dv">0</span>] <span class="op">+</span> <span class="bu">list</span>(xgb.predict(X<span class="op">=</span>X_train.values)) <span class="op">+</span> <span class="bu">list</span>(y_xgb_pred))</span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>    y_xgb_pred <span class="op">=</span> np.exp(np.log(df.iloc[index[<span class="dv">0</span>][<span class="dv">0</span>], <span class="dv">0</span>]) <span class="op">+</span> y_xgb_pred.cumsum())</span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Salvando acurácia dos modelos</span></span>
+<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a>    acc_reg_3.append(<span class="dv">1</span><span class="op">-</span><span class="bu">abs</span>(y_test.<span class="bu">sum</span>() <span class="op">-</span> y_reg_pred[<span class="op">-</span><span class="dv">12</span>:].<span class="bu">sum</span>())<span class="op">/</span>y_test.<span class="bu">sum</span>())</span>
+<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a>    acc_xgb_3.append(<span class="dv">1</span><span class="op">-</span><span class="bu">abs</span>(y_test.<span class="bu">sum</span>()<span class="op">-</span> y_xgb_pred[<span class="op">-</span><span class="dv">12</span>:].<span class="bu">sum</span>())<span class="op">/</span>y_test.<span class="bu">sum</span>())</span>
+<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a>acc_reg_3,acc_xgb_3 <span class="op">=</span> np.array(acc_reg_3), np.array(acc_xgb_3)</span>
+<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(acc_reg_3)</span>
+<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb25-52"><a href="#cb25-52" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(acc_xgb_3)</span>
+<span id="cb25-53"><a href="#cb25-53" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb25-54"><a href="#cb25-54" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"XGBoost vence: </span><span class="sc">{</span>(acc_xgb_3<span class="op">&gt;</span>acc_reg_3)<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">round</span>(<span class="dv">100</span><span class="op">*</span>(acc_xgb_3<span class="op">&gt;</span>acc_reg_3).<span class="bu">sum</span>()<span class="op">/</span>n, <span class="dv">2</span>)<span class="sc">}</span><span class="ss"> %)"</span>)</span>
+<span id="cb25-55"><a href="#cb25-55" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>()</span>
+<span id="cb25-56"><a href="#cb25-56" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="ss">f"regressão vence: </span><span class="sc">{</span>(acc_xgb_3<span class="op">&lt;</span>acc_reg_3)<span class="sc">.</span><span class="bu">sum</span>()<span class="sc">}</span><span class="ss"> (</span><span class="sc">{</span><span class="bu">round</span>(<span class="dv">100</span><span class="op">*</span>(acc_xgb_3<span class="op">&lt;</span>acc_reg_3).<span class="bu">sum</span>()<span class="op">/</span>n, <span class="dv">2</span>)<span class="sc">}</span><span class="ss"> %)"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[0.99532842 0.93930839 0.95202871 0.97169372 0.93077445 0.98235854
+ 0.97826689 0.97537997 0.98561417 0.99258848 0.98632184 0.96603365
+ 0.98250614 0.95616816 0.98036951 0.99492786 0.97460849 0.98595941
+ 0.99981699 0.99789177 0.98427603]
+
+[0.92437821 0.93035122 0.95883194 0.9853717  0.93193493 0.99198943
+ 0.9724272  0.96913393 0.94678025 0.99926013 0.98498942 0.98660142
+ 0.95577222 0.98513558 0.97178947 0.96626747 0.98690382 0.95001207
+ 0.97660542 0.9728616  0.9922924 ]
+
+XGBoost vence: 9 (42.86 %)
+
+regressão vence: 12 (57.14 %)</code></pre>
+</div>
+</div>
+<p>E o jogo virou! O XGBoost performa melhor 12 vezes, contra 9 da regressão linear. Será que vencer 57% de 21 duelos é o bastante para dizer que ele é melhor? Bom, é uma hipótese que pode ser testada.</p>
+<div id="91975b3e" class="cell" data-execution_count="28">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="co">#echo: True</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>f, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>ax.plot(acc_xgb_3, <span class="st">'b-o'</span>, label<span class="op">=</span><span class="st">'XGBoost'</span>)</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>ax.plot(acc_reg_3, <span class="st">'g-o'</span>, label<span class="op">=</span><span class="st">'Regressão'</span>)</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>plt.ylim(<span class="fl">.8</span>, <span class="fl">1.1</span>)</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>plt.axhline(y<span class="op">=</span><span class="dv">1</span>, color<span class="op">=</span><span class="st">'k'</span>, alpha<span class="op">=</span><span class="fl">.5</span>, ls<span class="op">=</span><span class="st">'--'</span>)</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>plt.legend(frameon<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>plt.xticks(np.arange(<span class="dv">0</span>, <span class="dv">22</span>, <span class="dv">2</span>))</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">"Round"</span>)</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"Acurácia"</span>)</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Análise de Performance"</span>)</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>plt.grid(<span class="va">False</span>)</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-29-output-1.png" width="674" height="454" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<div id="63d2eb1a" class="cell" data-execution_count="29">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>test(a<span class="op">=</span>acc_xgb_3,</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>     b<span class="op">=</span>acc_reg_3)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Testes: 21
+A venceu: 9
+B venceu: 12
+
+Não há evidências para dizer que o B é o melhor modelo
+p valor:  0.332</code></pre>
+</div>
+</div>
+<p>Observa-se um p-valor de 33%. Isso é, apesar de ter performado acima da Regressão Linear, não há evidências para dizermos que o XGBoost é melhor do que a Regressão e que essse resultado não é por acaso.</p>
+<p>O que, em termos práticos, quer dizer que para esse dataset, uma regressão linear vai ter performance similar a regressões não paramétricas. O XGBoost pode, ainda, ganhar algumas covariáveis, defasagens e etc. mas aí, para ser justos, teríamos que colocar ele para competir com um SARIMA. De todo jeito, é um bom modelo a ter na caixa de ferramentas de cientista de dados.</p>
+<p>A título de comparação, abaixo é possível ver a performance dos 3 XGBoost treinados ao longo do texto:</p>
+<div id="7097900d" class="cell" data-execution_count="30">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="co">#echo: True</span></span>
+<span id="cb30-2"><a href="#cb30-2" aria-hidden="true" tabindex="-1"></a>f, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb30-3"><a href="#cb30-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-4"><a href="#cb30-4" aria-hidden="true" tabindex="-1"></a>ax.plot(acc_xgb_1, <span class="st">'b-o'</span>, alpha<span class="op">=</span><span class="fl">.5</span>, label<span class="op">=</span><span class="st">'XGBoost 1'</span>)</span>
+<span id="cb30-5"><a href="#cb30-5" aria-hidden="true" tabindex="-1"></a>ax.plot(acc_xgb_2, <span class="st">'r-o'</span>, alpha<span class="op">=</span><span class="fl">.5</span>, label<span class="op">=</span><span class="st">'XGBoost 2'</span>)</span>
+<span id="cb30-6"><a href="#cb30-6" aria-hidden="true" tabindex="-1"></a>ax.plot(acc_xgb_3, <span class="st">'g-o'</span>, alpha<span class="op">=</span><span class="fl">.5</span>, label<span class="op">=</span><span class="st">'XGBoost 3'</span>)</span>
+<span id="cb30-7"><a href="#cb30-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-8"><a href="#cb30-8" aria-hidden="true" tabindex="-1"></a>plt.ylim(<span class="fl">.8</span>, <span class="fl">1.1</span>)</span>
+<span id="cb30-9"><a href="#cb30-9" aria-hidden="true" tabindex="-1"></a>plt.axhline(y<span class="op">=</span><span class="dv">1</span>, color<span class="op">=</span><span class="st">'k'</span>, alpha<span class="op">=</span><span class="fl">.5</span>, ls<span class="op">=</span><span class="st">'--'</span>)</span>
+<span id="cb30-10"><a href="#cb30-10" aria-hidden="true" tabindex="-1"></a>plt.legend(frameon<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb30-11"><a href="#cb30-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb30-12"><a href="#cb30-12" aria-hidden="true" tabindex="-1"></a>plt.xticks(np.arange(<span class="dv">0</span>, <span class="dv">22</span>, <span class="dv">2</span>))</span>
+<span id="cb30-13"><a href="#cb30-13" aria-hidden="true" tabindex="-1"></a>plt.xlabel(<span class="st">"Round"</span>)</span>
+<span id="cb30-14"><a href="#cb30-14" aria-hidden="true" tabindex="-1"></a>plt.ylabel(<span class="st">"Acurácia"</span>)</span>
+<span id="cb30-15"><a href="#cb30-15" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Análise de Performance"</span>)</span>
+<span id="cb30-16"><a href="#cb30-16" aria-hidden="true" tabindex="-1"></a>plt.grid(<span class="va">False</span>)</span>
+<span id="cb30-17"><a href="#cb30-17" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-31-output-1.png" width="674" height="454" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Ficando nítido o ganho de performance com o tratamento da tendência. Vizualizando o último modelo vindo da escala log pra ver como está “visualmente” o modelo:</p>
+<div id="0996f735" class="cell" data-execution_count="31">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>y_train <span class="op">=</span> df.iloc[index[<span class="dv">0</span>]].copy()</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>y_test <span class="op">=</span> df.iloc[index[<span class="dv">1</span>]].copy()</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a>f, ax <span class="op">=</span> plt.subplots(figsize<span class="op">=</span>(<span class="dv">8</span>, <span class="dv">5</span>))</span>
+<span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a>plt.plot(y_train, <span class="st">'k'</span>, label<span class="op">=</span><span class="st">'Treino'</span>)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>plt.plot(y_test, <span class="st">'r--'</span>, label<span class="op">=</span><span class="st">'Teste'</span>)</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>plt.plot(y_test.index, y_xgb_pred[<span class="op">-</span><span class="dv">12</span>:], <span class="st">'b--'</span>, label<span class="op">=</span><span class="st">'XGBoost'</span>)</span>
+<span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a>plt.plot(y_test.index, y_reg_pred[<span class="op">-</span><span class="dv">12</span>:], <span class="st">'g--'</span>, label<span class="op">=</span><span class="st">'Regressão'</span>)</span>
+<span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb31-11"><a href="#cb31-11" aria-hidden="true" tabindex="-1"></a>plt.legend(frameon<span class="op">=</span><span class="va">False</span>)</span>
+<span id="cb31-12"><a href="#cb31-12" aria-hidden="true" tabindex="-1"></a>plt.title(<span class="st">"Série Temporal"</span>)</span>
+<span id="cb31-13"><a href="#cb31-13" aria-hidden="true" tabindex="-1"></a>plt.show()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="qmd_file_files/figure-html/cell-32-output-1.png" width="658" height="434" class="figure-img"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Agora, sim, com “carinha” de modelo de série temporal.</p>
+</section>
+</section>
+<section id="sec-comentarios-finais" class="level2">
+<h2 class="anchored" data-anchor-id="sec-comentarios-finais">Comentários Finais:</h2>
+<p>Recapitulando o que foi visto:</p>
+<p>-Definiu-se o que são regressões não paramétricas <br> -Foi apresentada uma classe de regressões não paramétricas, o Gradient Boost Tree Decision <br> -Foi explorado os problemas dessa aborgadem na previsão de demanda usando o XGBoost <br> -Foi apresentada possíveis soluções para o problema de tendência</p>
+<p>Lembrando, foi usado o XGBoost, mas poderia ser usado o LightLGB, o KNN, Splines etc. O ponto central está no entendimento da aplicação desses modelos e suas eventuais limitações.</p>
+<p>Outro ponto a se destacar foi a importância da remoção da tendência. Apesar de ser um modelo “moderninho” de machine learning, o que ajudou ele a performar melhor foi um approach mais clássico de séries temporais. No final, não importa o modelo, aplicar uma metodologia baseada em Box &amp; Jenkis nunca faz mal. Transformações nos dados também ajudam muito.</p>
+<p>No mais, trata-se de um modelo promissor para dados estacionários com forte padrão de sazonal. É muito usado quando se trata de uma granulalidade alta, seja no tempo (hora, dia etc), seja na previsão (sku, pdv etc), dado que ele entende fácil padrões estruturais.</p>
+<p>Além disso, usa-se muito variáveis com lag, afim de dar uma cara mais de “SARMA” pra ele. Novamente a ideia de usar do que há mais bem conceituada na estatística clássica, mas com modelos não lineares mais robustos.</p>
+</section>
+<section id="sec-principais-fontes" class="level2">
+<h2 class="anchored" data-anchor-id="sec-principais-fontes">Principais Fontes:</h2>
+<p>-Para regressões não paramétricas, há as notas de aula do professor Lucambio Perez da UFPR: <a href="http://leg.ufpr.br/~lucambio/Nonparam/NparamIV.html" target="_blank" rel="noopener noreferrer">Regressão Não Paramétrica</a>. <br> -Para uma boa introdução ao universo de séries temporais e previsão, o livro <a href="https://otexts.com/fpp3/" target="_blank" rel="noopener noreferrer">Forecasting: Principles &amp; Practice</a>. O livro é todo construído em R, o que pode ser um problema para os pythonistas. Os autores têm excelentes publicações na área de séries temporais, que são devidamente citadas ao longo do livro, então é uma baita livro de cabeceira. <br> -Para sofrer um pouquinho com séries temporais e entender a fundo a “lógica” da modelagem de um processo estocástico, o livro <a href="https://www.amazon.com.br/Econometria-S%C3%A9ries-Temporais-Rodrigo-Silveira/dp/852211157X" target="_blank" rel="noopener noreferrer">Econometria de Séries Temporais</a>. Não recomendo como primeira leitura, mas certamente um baita livro para elevar o nível de entendimento no assunto. <br> -Para uma introdução no universo do Machine Learning, o livro <a href="https://www.amazon.com.br/M%C3%A3os-obra-aprendizado-scikit-learn-tensorflow/dp/8550803812/ref=sr_1_4?__mk_pt_BR=%C3%85M%C3%85%C5%BD%C3%95%C3%91&amp;crid=4OWMSIKND5IS&amp;keywords=aprendizado+de+maquina&amp;qid=1703042541&amp;s=books&amp;sprefix=aprendizado+de+maquina%2Cstripbooks%2C262&amp;sr=1-4" target="_blank" rel="noopener noreferrer">Mãos à Obra: Aprendizado de Máquina com Scikit-Learn &amp; TensorFlow</a>. É um livro básico, mas que é legal ter como consulta, como foi o caso na construção do texto. <br> -Para mais usos de Aprendizado de Máquina Supervisionado em séries temporais, o livro <a href="https://www.amazon.com.br/Advanced-Forecasting-Python-State-Art-Models/dp/1484271491/ref=sr_1_1?__mk_pt_BR=%C3%85M%C3%85%C5%BD%C3%95%C3%91&amp;crid=31X3J7B6L1YS&amp;keywords=Advanced+Forecasting+with+Python&amp;qid=1703042592&amp;s=books&amp;sprefix=advanced+forecasting+with+python%2Cstripbooks%2C515&amp;sr=1-1&amp;ufe=app_do%3Aamzn1.fos.4bb5663b-6f7d-4772-84fa-7c7f565ec65b" target="_blank" rel="noopener noreferrer">Advanced Forecasting with Python</a>. Não é tão advanced assim e o autor acaba pecando fortemente na exploração de alguns modelos, mas é o preço que se paga por querer ensinar +10 modelos distintos em menos de 300 pgs. <br></p>
+</section>
+
+</main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      return note.innerHTML;
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

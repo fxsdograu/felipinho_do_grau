@@ -1,0 +1,74 @@
+<!DOCTYPE HTML>
+<html>
+
+<!-- TITLE SECTION !-->
+<head>
+  <title>XGBoost Aplicado à Séries Temporais</title>
+  <meta charset="utf-8">
+  <meta property="og:image" content="../../../../../images/cover.jpg" />
+  <link rel="icon" type="image/x-icon" href="../../../../../images/favicon.ico">
+  <link rel="stylesheet" type="text/css" href="../../../../../css/style.css">
+
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+</head>
+
+<body onload="load_html()">
+  <!-- HEADER SECTION !-->
+  <header>
+    <nav class="main-nav">
+      <ul>
+        <li><a href="../../../../../index.html">Inicio</a></li>
+        <li><a href="../../../../../projects.html" class="active">Projetos</a></li>
+        <li><a href="../../../../../contact.html">Sobre</a></li>
+      </ul>
+    </nav>
+  </header>
+
+
+  <!-- COVER SECTION !-->
+  <section id="home-head" class="cover">
+    <h1 id="page-name">Projetos</h1>
+  </section>
+
+  <!-- CONTENT SECTION !-->
+  <section id="main-content">
+  </section>
+
+
+  <!-- FOOTER SECTION !-->
+  <footer>
+    <div><small>by <a target="_blank" rel="nofollow" href="https://www.linkedin.com/in/vinicius-aquino-in/">Vinicius
+          Aquino</a>.</small></div>
+  </footer>
+
+  <!-- JS SECTION -->
+  <script>
+    function load_html() {
+      var currentDir = window.location.href.split("/")
+      currentDir.pop()
+      currentDir = currentDir.toString().replaceAll(",", "/")
+
+      fetch(currentDir + '/qmd_file.html')
+            .then(function (response) {
+                  if (response.ok) {
+                                    return response.text();} 
+                  else {
+                                    throw new Error('Network response was not ok');}
+                })
+
+            .then(function (html) {                            
+                  document.getElementById("main-content").innerHTML = html;                    
+                  MathJax.typesetPromise();
+                                  })
+
+            .catch(function (err) {
+                  console.warn('Something went wrong:', err);
+                                  });
+                            }
+  </script>
+
+
+</body>
+
+</html>
